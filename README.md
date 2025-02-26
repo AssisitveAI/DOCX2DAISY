@@ -1,6 +1,3 @@
-Below is the complete README.md as a single markdown document that you can copy and paste:
-
-```markdown
 # DOCX2DAISY
 
 DOCX2DAISY is a Python library that converts Microsoft Word (.docx) documents into DAISY 3 compliant digital books. The output is a ZIP package containing all necessary files for a DAISY 3 book, including text and images. The generated package can be loaded in DAISY reader applications.
@@ -109,5 +106,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 **Acknowledgments**
 
 This library leverages the [python-docx](https://python-docx.readthedocs.io/en/latest/) library for processing Word documents and adheres to DAISY 3 specifications for digital talking books.
-```
 
