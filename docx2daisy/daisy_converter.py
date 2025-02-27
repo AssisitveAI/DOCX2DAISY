@@ -5,6 +5,10 @@ from xml.etree import ElementTree as ET
 from docx import Document
 
 
+#############################################
+#     Conversion Functions for DAISY        #
+#############################################
+
 def extract_images_from_doc(doc):
     """
     Extract images from the document's relationships.
@@ -277,3 +281,97 @@ def docx_to_daisy(docx_path, output_zip_path):
         # Write all image files under the images/ folder
         for rel_id, img in image_mapping.items():
             z.writestr(f"images/{img['filename']}", img["data"])
+
+
+#############################################
+#         Document Preparation Checker      #
+#############################################
+
+def check_metadata(doc):
+    warnings = []
+    props = doc.core_properties
+    if not props.title:
+        warnings.append("Document metadata: Title is missing.")
+    if not props.author:
+        warnings.append("Document metadata: Author is missing.")
+    if not props.language:
+        warnings.append("Document metadata: Language is missing.")
+    return warnings
+
+
+def check_headings(doc):
+    warnings = []
+    heading_counts = {}
+    for para in doc.paragraphs:
+        style = para.style.name if para.style else ""
+        if style.startswith("Heading"):
+            try:
+                level = int(style.split()[1])
+            except (IndexError, ValueError):
+                level = None
+            if level:
+                heading_counts[level] = heading_counts.get(level, 0) + 1
+
+    if not heading_counts:
+        warnings.append(
+            "No headings found. Use Heading styles (e.g., Heading 1, Heading 2) to structure your document.")
+    else:
+        if heading_counts.get(1, 0) == 0:
+            warnings.append("No 'Heading 1' style found. At least one top-level heading is recommended.")
+    return warnings
+
+
+def check_images_alt_text(doc):
+    warnings = []
+    ns_a = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    ns_wp = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+
+    para_index = 0
+    for para in doc.paragraphs:
+        para_index += 1
+        for run in para.runs:
+            blips = run._element.findall('.//{%s}blip' % ns_a)
+            for blip in blips:
+                docPrs = run._element.findall('.//{%s}docPr' % ns_wp)
+                if not docPrs or 'descr' not in docPrs[0].attrib or not docPrs[0].attrib.get('descr').strip():
+                    warnings.append(
+                        f"Image found in paragraph {para_index} without alt text. Provide alternative text for accessibility.")
+    return warnings
+
+
+def check_tables(doc):
+    warnings = []
+    if doc.tables:
+        warnings.append(
+            "Tables are found in the document. Ensure that each table has accompanying descriptions or alt text if needed.")
+    return warnings
+
+
+def check_docx_preparation(docx_path):
+    if not os.path.exists(docx_path):
+        print("The specified DOCX file does not exist.")
+        return
+
+    doc = Document(docx_path)
+    all_warnings = []
+    all_warnings.extend(check_metadata(doc))
+    all_warnings.extend(check_headings(doc))
+    all_warnings.extend(check_images_alt_text(doc))
+    all_warnings.extend(check_tables(doc))
+
+    if all_warnings:
+        print("Issues found in document preparation:")
+        for warn in all_warnings:
+            print(" -", warn)
+    else:
+        print("All checks passed. Your document appears to be properly prepared for DAISY conversion.")
+
+
+# For convenience, if this module is run directly, run the checker on a sample file.
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) > 1:
+        check_docx_preparation(sys.argv[1])
+    else:
+        print("Usage: python daisy_converter.py <path_to_docx_file>")
